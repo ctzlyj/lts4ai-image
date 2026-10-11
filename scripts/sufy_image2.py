@@ -431,6 +431,11 @@ class SfImage2Client:
 
     def _http_error(self, status: int, response_body: bytes) -> SkillError:
         if status in {401, 403}:
+            message = _provider_error_message(response_body)
+            if status == 403 and "quota" in message.lower():
+                # LTS4AI answers an exhausted token quota with HTTP 403, not
+                # 429; surface the real reason instead of a misleading auth error.
+                return SkillError(f"LTS4AI token quota is not enough (HTTP 403): {message}")
             return SkillError(f"LTS4AI authentication failed (HTTP {status}).")
         if status == 429:
             return SkillError("LTS4AI rate limit or quota was reached (HTTP 429).")
