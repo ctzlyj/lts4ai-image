@@ -2,7 +2,7 @@
 
 把 `image.ctzlyj.com` 使用的 LTS4AI 生图能力封装成可安装的 Agent Skill。安装后，用户只需向 Agent 提供自己的 LTS4AI API Key，再用自然语言描述想生成或修改的图片。
 
-> Skill 名称已由 `sufy-image2` 更名为 `lts4ai-image`，仓库下载地址暂沿用 `ctzlyj/sufy-image2`。默认模型为 `gpt-image-2.5`，支持 GPT-image-2.6 和当前 Gemini 图片模型。默认接口为 `https://api.lts4ai.com/v1`。
+> Skill 名称已由 `sufy-image2` 更名为 `lts4ai-image`，仓库地址同步更名为 `ctzlyj/lts4ai-image`。默认模型为 `gpt-image-2.5`，支持 GPT-image-2.6 和当前 Gemini 图片模型。默认接口为 `https://api.lts4ai.com/v1`。
 
 ## 如何选择生图模型
 
@@ -40,20 +40,20 @@
 最简单的方式：把仓库地址发给支持 Agent Skills 的 Agent，并说：
 
 ```text
-请安装这个 Skill：https://github.com/ctzlyj/sufy-image2
+请安装这个 Skill：https://github.com/ctzlyj/lts4ai-image
 ```
 
 手动安装时，把仓库克隆到 Agent 的 Skills 目录。例如 Codex：
 
 ```bash
-git clone https://github.com/ctzlyj/sufy-image2 ~/.codex/skills/lts4ai-image
+git clone https://github.com/ctzlyj/lts4ai-image ~/.codex/skills/lts4ai-image
 ```
 
-其他 Agent 请复制到其兼容的 Skills 目录，确保 `SKILL.md` 位于 Skill 根目录。
+其他 Agent 请复制到其兼容的 Skills 目录，确保 `SKILL.md` 位于 Skill 根目录。原仓库 `ctzlyj/sufy-image2` 会重定向到新地址，已有教程入口仍可使用。
 
 已安装用户可直接说“请更新 lts4ai-image 到最新版，保留我的本地修改”。Git 安装且工作区干净时可 `git pull --ff-only`；有本地修改或分叉时先保存并合并，不用 `reset --hard`、覆盖整个目录或删除原输出。非 Git 安装先将新版解压到旁边目录再对比合并；更新不需要复制任何个人 Key 或历史图片。
 
-旧安装请告诉 Agent：“请将 sufy-image2 更新为 lts4ai-image，保留本地修改、凭据和输出。”先核对 Git 远端与工作区，确认远端仍指向上述仓库，并将 Skill 文件夹改为 `lts4ai-image`；不要留下两个可自动触发的重复安装。`scripts/sufy_image2.py` 和 `SfImage2Client` 保留兼容，现有 Windows DPAPI 凭据仍使用原文件名 `sufy-image2.dpapi`，无需迁移或重新导出。
+旧安装请告诉 Agent：“请将 sufy-image2 更新为 lts4ai-image，保留本地修改、凭据和输出。”先核对 Git 远端与工作区，将远端更新为 `https://github.com/ctzlyj/lts4ai-image.git`，并将 Skill 文件夹改为 `lts4ai-image`；不要留下两个可自动触发的重复安装。`scripts/sufy_image2.py` 和 `SfImage2Client` 保留兼容，现有 Windows DPAPI 凭据仍使用原文件名 `sufy-image2.dpapi`，无需迁移或重新导出。
 
 ## 用户使用方式
 
