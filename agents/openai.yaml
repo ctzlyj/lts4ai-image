@@ -1,4 +1,4 @@
 interface:
-  display_name: "SUFY Image2"
-  short_description: "gpt-image-2.5 生图、厘米海报与多图编辑"
-  default_prompt: "Use $sufy-image2 with my LTS4AI API key to generate or edit an image with gpt-image-2.5 while preserving my custom canvas size and all requested text; compose the copy yourself without calling a text model."
+  display_name: "LTS4AI Image"
+  short_description: "LTS4AI GPT 2.5/2.6 与 Gemini 生图、厘米海报和多图编辑"
+  default_prompt: "Use $lts4ai-image with my LTS4AI API key to generate or edit an image, preserving my selected model, canvas size, and all requested text; compose the copy yourself without calling a text model."

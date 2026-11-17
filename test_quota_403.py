@@ -3,7 +3,7 @@ from pathlib import Path
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "scripts"))
-import sufy_image2 as sf
+import lts4ai_image as sf
 
 
 class Quota403Tests(unittest.TestCase):
@@ -22,6 +22,12 @@ class Quota403Tests(unittest.TestCase):
         client = sf.SfImage2Client(api_key="secret-key")
         error = client._http_error(403, b"")
         self.assertEqual(str(error), "LTS4AI authentication failed (HTTP 403).")
+
+    def test_quota_message_redacts_echoed_api_key(self):
+        client = sf.Lts4aiImageClient(api_key="example-private-key")
+        error = client._http_error(403, b'{"error":{"message":"quota exhausted for example-private-key"}}')
+        self.assertIn("quota", str(error))
+        self.assertNotIn("example-private-key", str(error))
 
     def test_401_never_leaks_quota_wording(self):
         client = sf.SfImage2Client(api_key="secret-key")

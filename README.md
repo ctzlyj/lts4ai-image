@@ -1,20 +1,23 @@
-# SUFY Image2 Agent Skill
+# LTS4AI Image Agent Skill
 
-把 `image.ctikki.com` 使用的 LTS4AI 生图能力封装成可安装的 Agent Skill。安装后，用户只需向 Agent 提供自己的 LTS4AI API Key，再用自然语言描述想生成或修改的图片。
+把 `image.ctzlyj.com` 使用的 LTS4AI 生图能力封装成可安装的 Agent Skill。安装后，用户只需向 Agent 提供自己的 LTS4AI API Key，再用自然语言描述想生成或修改的图片。
 
-> Skill 名称继续保留 SUFY Image2；默认模型更新为新链路 `gpt-image-2.5`，可选 `GPT-image-2` 兼容别名和官方 Imagen 通道模型。默认接口为 `https://api.lts4ai.com/v1`。
+> Skill 名称已由 `sufy-image2` 更名为 `lts4ai-image`，仓库下载地址暂沿用 `ctzlyj/sufy-image2`。默认模型为 `gpt-image-2.5`，支持 GPT-image-2.6 和当前 Gemini 图片模型。默认接口为 `https://api.lts4ai.com/v1`。
 
 ## 如何选择生图模型
 
 | 模型 | 建议用途 | 完整模型 ID |
 |---|---|---|
-| gpt-image-2.5（默认） | 新链路直连 ID；日常商品图、批量出图、多参考图编辑，按张计费 | `gpt-image-2.5` |
-| GPT-image-2（兼容别名） | 站点兼容入口，上游同样映射到 gpt-image-2.5 | `GPT-image-2` |
-| Imagen Pro（官方通道） | 可选官方 Imagen 模型，按张计费 | `gemini-3.1-pro-imagen-official` |
-| Imagen Flash Lite（官方通道） | 可选官方 Imagen 模型，按张计费 | `gemini-3.5-flash-lite-imagen-official` |
-| Imagen Flash（官方通道） | 可选官方 Imagen 模型，按张计费 | `gemini-3.6-flash-imagen-official` |
+| gpt-image-2.5（默认） | 日常商品图、批量出图、多参考图编辑，按张计费 | `gpt-image-2.5` |
+| GPT-image-2.6 | 文字生图和参考图编辑，保留原始模型 ID | `gpt-image-2.6` |
+| Imagen Pro（官方通道） | 可选官方 Imagen 模型，按张计费 | `gemini-pro-imagen-official` |
+| Imagen Flash Lite（官方通道） | 可选官方 Imagen 模型，按张计费 | `gemini-flash-lite-imagen-official` |
+| Imagen Flash（官方通道） | 可选官方 Imagen 模型，按张计费 | `gemini-flash-imagen-official` |
+| Imagen Argon（官方通道） | 可选官方 Imagen 模型 | `gemini-argon-imagen-official` |
+| Gemini 3 Pro Image | 生图和参考图编辑 | `gemini-3-pro-image-preview` |
+| Gemini 3.1 Flash Image | 生图和参考图编辑 | `gemini-3.1-flash-image-preview` |
 
-默认已经使用 `gpt-image-2.5`；如需兼容别名或官方 Imagen 模型，直接告诉 Agent 名称即可，CLI 用 `--model` 指定完整 ID。不会擅自替换用户指定的模型。实际可用模型以用户 Key 的 `models` 命令结果为准。
+默认使用 `gpt-image-2.5`；如需 2.6 或 Gemini 模型，直接告诉 Agent 名称即可，CLI 用 `--model` 指定完整 ID。2.6 通过 Images API 生成与参考图编辑，不改发 2.5 或 Chat Completions。不会擅自替换用户指定的模型。实际可用模型以用户 Key 的 `models` 命令结果为准；旧 `GPT-image-2` 及其他历史 ID 仍可显式传入，不列为现行目录。
 
 ## 能力
 
@@ -26,7 +29,7 @@
 - 标题、卖点和画面文案由使用 Skill 的 Agent 直接设计，不调用任何文本/聊天模型
 - Adaptive、1:1、16:9、21:9、4:3、3:2、5:4、2:1、3:4、2:3、4:5、9:16
 - 1K、2K、4K 尺寸映射
-- 自定义厘米海报尺寸：精确保持比例，目录内模型均支持；也可直接指定合法像素尺寸
+- 自定义厘米海报尺寸：精确保持比例，客户端会预检尺寸；也可直接指定合法像素尺寸
 - 离线 `guide` 中文选型说明、`canvas` 尺寸预检（不需要 Key，不收费）
 - JSON、Base64、Data URL、SSE 和远程图片 URL 响应解析
 - 429 有界重试；生图超时/网关错误等未知结果停止重发，避免重复扣费；输入限制和 API Key 脱敏
@@ -43,35 +46,37 @@
 手动安装时，把仓库克隆到 Agent 的 Skills 目录。例如 Codex：
 
 ```bash
-git clone https://github.com/ctzlyj/sufy-image2 ~/.codex/skills/sufy-image2
+git clone https://github.com/ctzlyj/sufy-image2 ~/.codex/skills/lts4ai-image
 ```
 
 其他 Agent 请复制到其兼容的 Skills 目录，确保 `SKILL.md` 位于 Skill 根目录。
 
-已安装用户可直接说“请更新 sufy-image2 到最新版，保留我的本地修改”。Git 安装且工作区干净时可 `git pull --ff-only`；有本地修改或分叉时先保存并合并，不用 `reset --hard`、覆盖整个目录或删除原输出。非 Git 安装先将新版解压到旁边目录再对比合并；更新不需要复制任何个人 Key 或历史图片。
+已安装用户可直接说“请更新 lts4ai-image 到最新版，保留我的本地修改”。Git 安装且工作区干净时可 `git pull --ff-only`；有本地修改或分叉时先保存并合并，不用 `reset --hard`、覆盖整个目录或删除原输出。非 Git 安装先将新版解压到旁边目录再对比合并；更新不需要复制任何个人 Key 或历史图片。
+
+旧安装请告诉 Agent：“请将 sufy-image2 更新为 lts4ai-image，保留本地修改、凭据和输出。”先核对 Git 远端与工作区，确认远端仍指向上述仓库，并将 Skill 文件夹改为 `lts4ai-image`；不要留下两个可自动触发的重复安装。`scripts/sufy_image2.py` 和 `SfImage2Client` 保留兼容，现有 Windows DPAPI 凭据仍使用原文件名 `sufy-image2.dpapi`，无需迁移或重新导出。
 
 ## 用户使用方式
 
 安装后可直接对 Agent 说：
 
 ```text
-使用 sufy-image2，API Key 是我接下来发送的密钥。帮我生成一张 1:1 的高端瓜子商品主图，2K，深色背景，香槟金文字。
+使用 lts4ai-image，API Key 是我接下来发送的密钥。帮我生成一张 1:1 的高端瓜子商品主图，2K，深色背景，香槟金文字。
 ```
 
 或：
 
 ```text
-使用 sufy-image2，把这两张商品参考图做成 4:5 的高级电商场景图，保持包装文字和商品外观完全不变。
+使用 lts4ai-image，把这两张商品参考图做成 4:5 的高级电商场景图，保持包装文字和商品外观完全不变。
 ```
 
 商品套图或服装工作台任务可直接描述目标，例如：
 
 ```text
-使用 sufy-image2，按 Image Studio 商品套图规则生成主图：围绕一个核心购买理由，使用主标题、副标题和最多两个真实证据标签。
+使用 lts4ai-image，按 Image Studio 商品套图规则生成主图：围绕一个核心购买理由，使用主标题、副标题和最多两个真实证据标签。
 ```
 
 ```text
-使用 sufy-image2，按服装工作台的标准换装流程处理这些商品正反面图和人物模板图；先生成主图供我审核，不要自动继续动作图。
+使用 lts4ai-image，按服装工作台的标准换装流程处理这些商品正反面图和人物模板图；先生成主图供我审核，不要自动继续动作图。
 ```
 
 详细规则见 [`references/image-studio-workflows.md`](references/image-studio-workflows.md)。
@@ -85,23 +90,25 @@ CLI 不接受 `--api-key` 参数。优先使用临时 `LTS4AI_API_KEY`，或让 
 ### 文生图 generate
 
 ```bash
-python scripts/sufy_image2.py generate --prompt "高端影棚商品摄影" --ratio 1:1 --quality 2K
+python scripts/lts4ai_image.py generate --prompt "高端影棚商品摄影" --ratio 1:1 --quality 2K
 ```
+
+使用 2.6：在命令中加入 `--model gpt-image-2.6`。标准 LTS4AI 接口下，GPT 方图的 1K / 2K / 4K 请求分别为 **1024×1024 / 2048×2048 / 2880×2880**；4K 是约 8MP 档，不承诺 4096 方图。Gemini 官方 Imagen 模型沿用既有固定尺寸映射；详见 [`references/api-contract.md`](references/api-contract.md)。
 
 ### 图生图 edit
 
 ```bash
-python scripts/sufy_image2.py edit --prompt "保持商品不变，替换为高级场景" --image product.png --ratio Adaptive --quality 2K
+python scripts/lts4ai_image.py edit --prompt "保持商品不变，替换为高级场景" --image product.png --ratio Adaptive --quality 2K
 ```
 
 ### 批量 batch
 
 ```bash
-python scripts/sufy_image2.py batch --prompt "高级商品摄影" --count 4 --concurrency 2 --ratio 1:1 --quality 2K
+python scripts/lts4ai_image.py batch --prompt "高级商品摄影" --count 4 --concurrency 2 --ratio 1:1 --quality 2K
 ```
 
 ```bash
-python scripts/sufy_image2.py batch --prompts-file prompts.txt --image product.png --ratio Adaptive --quality 4K
+python scripts/lts4ai_image.py batch --prompts-file prompts.txt --image product.png --ratio Adaptive --quality 4K
 ```
 
 ## 重要限制
@@ -109,14 +116,14 @@ python scripts/sufy_image2.py batch --prompts-file prompts.txt --image product.p
 ### 自定义海报尺寸
 
 ```bash
-python scripts/sufy_image2.py canvas --width-cm 120 --height-cm 40 --quality 4K
-python scripts/sufy_image2.py generate --prompt "活动海报，完整保留标题与卖点" --width-cm 120 --height-cm 40 --quality 4K
-python scripts/sufy_image2.py generate --prompt "活动海报" --resolution 3072x1024
+python scripts/lts4ai_image.py canvas --width-cm 120 --height-cm 40 --quality 4K
+python scripts/lts4ai_image.py generate --prompt "活动海报，完整保留标题与卖点" --width-cm 120 --height-cm 40 --quality 4K
+python scripts/lts4ai_image.py generate --prompt "活动海报" --resolution 3072x1024
 ```
 
 第一条只计算尺寸，不生图。120×40 厘米在 4K 档会请求 3840×1280 像素；29.7×21 厘米会请求 3168×2240 像素。并非只支持这些尺寸。
 
-- 目录内模型使用相同范围：宽高比 1:3～3:1，两边为 16 的倍数，最长边不超过 3840，总像素 655,360～8,294,400。
+- 客户端预检范围：宽高比 1:3～3:1，两边为 16 的倍数，最长边不超过 3840，总像素 655,360～8,294,400。自定义画布优先使用 GPT 2.5/2.6，其他模型是否接受具体尺寸以当前接口为准。
 - 厘米宽高必须能精确换算；无法精确表示会明确报错，不近似比例、不裁切或补边。支持最多 6 位小数；不要把商品自身尺寸当作海报尺寸。
 - `--width-cm` 与 `--height-cm` 必须成对使用，且不能和 `--ratio` / `--resolution` 混用。`edit`、`batch` 同样支持。
 - 厘米用于确定画布比例，不代表原生印刷 DPI。结果 JSON 同时包含请求尺寸及能读取到的实际图片宽高；交付前实际预览小字与商品，不用 Mock 测试代替视觉验收。
@@ -126,6 +133,7 @@ python scripts/sufy_image2.py generate --prompt "活动海报" --resolution 3072
 - 当前站点界面的 seed 不会传给 `gpt-image-2.5`，因此本 Skill 不承诺固定 seed 复现。
 - 4K 请求可能需要最长约 30 分钟。
 - 生图超时、连接中断或 HTTP 408/409/5xx 时结果可能已生成并计费，脚本不会自动重发。先核对服务端记录；批量部分失败时保留已保存图片，不整批重跑。
+- 按实际提交上游的请求次数计费，失败或超时也可能扣费；明确未提交不扣费。当前价格和具体扣费以 LTS4AI 公开目录与账本为准，不以成功交付张数推算。原结果查询不应触发新生图，CLI 不操作网站历史或找回状态。
 
 ## 给用户转发
 
@@ -134,14 +142,14 @@ python scripts/sufy_image2.py generate --prompt "活动海报" --resolution 3072
 ## 测试
 
 ```bash
-python -m unittest discover -s tests -v
+python -m unittest discover -s . -v
 ```
 
 测试使用本地 Mock Server，不需要真实 API Key，也不会产生调用费用。
 
-2026-09-30 更新验证：41 项单测通过，3894 组厘米画布输入与网站算法结果逐项一致，Skill 元数据校验通过；这不替代真实生成的小字视觉验收。
+2026-11-17 更新验证：51 项测试通过，覆盖八款现行模型原 ID 的 Images API 生成/参考图编辑、GPT 2.6、模型与端点相关的 2K 映射、旧入口兼容、未知结果不重发和 Key 脱敏；Skill 元数据校验通过。仅使用隔离 Mock，没有真实模型调用或收费，不替代成品视觉验收。
 
-2026-09-30 更新：默认生图模型切换为新链路 `gpt-image-2.5`（LTS4AI 生图渠道经 NextAICore 适配层转发），文案由 Agent 直接撰写，不调用文本模型。历史对齐说明保留：曾对齐网站源码 `c00dc693f8dbf2021bfa36d62050447df5bda587` 的模型、厘米画布与未知结果保护；不是网站 COS、登录后台或 Windows 客户端的复制品。
+历史记录（2026-09-30）：默认生图模型切换为新链路 `gpt-image-2.5`，文案由 Agent 直接撰写，不调用文本模型。历史对齐说明保留：曾对齐网站源码 `c00dc693f8dbf2021bfa36d62050447df5bda587` 的模型、厘米画布与未知结果保护；不是网站 COS、登录后台或 Windows 客户端的复制品。
 
 ## License
 

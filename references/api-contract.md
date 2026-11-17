@@ -3,8 +3,9 @@
 ## Defaults
 
 - Base URL: `https://api.lts4ai.com/v1`
-- Default model: `gpt-image-2.5` (new direct ID; the LTS4AI image channel forwards it through the NextAICore adapter)
-- Selectable: `GPT-image-2` compatibility alias, `gemini-3.1-pro-imagen-official`, `gemini-3.5-flash-lite-imagen-official`, `gemini-3.6-flash-imagen-official`; preserve exact user selection, never silently fall back
+- Default model: `gpt-image-2.5`
+- Current catalog: `gpt-image-2.5`, `gpt-image-2.6`, `gemini-pro-imagen-official`, `gemini-flash-lite-imagen-official`, `gemini-flash-imagen-official`, `gemini-argon-imagen-official`, `gemini-3-pro-image-preview`, `gemini-3.1-flash-image-preview`; preserve exact user selection, never silently fall back
+- Legacy IDs such as `GPT-image-2` may still be supplied explicitly and are sent unchanged. Model visibility and availability come from the user's authenticated `GET /v1/models`, not the offline catalog.
 - Authentication: `Authorization: Bearer <API key>`
 - Output format: PNG
 
@@ -23,6 +24,8 @@
 
 All catalog models share this contract. Do not send `n`, `seed`, or `response_format`.
 
+GPT-image-2.6 uses the exact `gpt-image-2.6` ID on both Images API endpoints. Do not substitute 2.5 or route it through Chat Completions.
+
 ## Multi-reference Editing
 
 `POST /v1/images/edits` with `multipart/form-data`:
@@ -39,7 +42,7 @@ Let the HTTP client generate the multipart boundary. Supported references are JP
 
 ## Resolution Mapping
 
-For current-site 1K and 2K controls:
+The legacy 1K mapping below also remains the 2K mapping for the official Imagen models and unrecognized/custom endpoint contracts:
 
 | Ratio | Provider size |
 |---|---|
@@ -47,6 +50,24 @@ For current-site 1K and 2K controls:
 | 16:9, 4:3, 3:2 | `1536x1024` |
 | 9:16, 3:4, 2:3, 4:5 | `1024x1536` |
 | 21:9, 5:4, 2:1 | `auto` |
+
+For 2K on `https://api.lts4ai.com/v1` or the equivalent `origin.lts4ai.com` endpoint, GPT 2.5/2.6, explicit legacy GPT aliases and the two Gemini preview image models request:
+
+| Ratio | Provider size |
+|---|---|
+| Adaptive, 1:1 | `2048x2048` |
+| 16:9 | `2560x1440` |
+| 21:9 | `2688x1152` |
+| 4:3 | `2048x1536` |
+| 3:2 | `2304x1536` |
+| 5:4 | `1920x1536` |
+| 2:1 | `2560x1280` |
+| 3:4 | `1536x2048` |
+| 2:3 | `1536x2304` |
+| 4:5 | `1536x1920` |
+| 9:16 | `1440x2560` |
+
+This endpoint-specific mapping does not rewrite an explicit `--resolution` or centimeter canvas. Different endpoints retain the previous mapping unless the user supplies a supported explicit resolution.
 
 For 4K:
 
@@ -67,9 +88,11 @@ For 4K:
 
 For edits, Adaptive first infers the nearest listed ratio from the first reference image.
 
-## Custom canvas (all catalog models)
+The 4K tier is an approximately 8 MP pixel envelope, not a promise of 4096×4096 output. In particular, a GPT square requests 2880×2880. Inspect measured output dimensions before delivery.
 
-The same custom-size support applies to every model in the catalog. `--width-cm` / `--height-cm` compute an exact reduced aspect ratio, choose integer multiples of 16 pixels on both axes, and apply:
+## Custom canvas
+
+`--width-cm` / `--height-cm` compute an exact reduced aspect ratio and choose integer multiples of 16 pixels on both axes. These are client-side validation limits; acceptance by a specific model is subject to its current API. Prefer GPT 2.5/2.6 for custom canvases and do not claim all models support every size. Apply:
 
 - Aspect ratio from 1:3 to 3:1 inclusive.
 - Longest side <=3840; area from 655360 to 8294400 pixels inclusive.
@@ -102,3 +125,4 @@ The client also accepts nested `b64Json`, data URLs, SSE `data:` JSON frames, di
 - Image POST HTTP 408/409/5xx, network failures, and interrupted bodies have an unknown outcome. Do not automatically resubmit; reconcile results and charges first. Missing/invalid image data also does not trigger an automatic new generation.
 - In a failed batch, already completed output files remain on disk. Inspect them before selecting any retry; do not replay successful tasks or silently change models.
 - A seed is not included in any generation or edit request.
+- Billing is based on actual upstream submissions, including submitted requests that fail or time out; explicitly unsubmitted requests are not charged. Current prices and outcomes come from LTS4AI's public catalog and ledger. Never derive a refund from HTTP status alone. Querying an original result does not authorize a replacement POST; website operation recovery is outside this CLI.

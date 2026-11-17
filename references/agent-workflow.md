@@ -7,7 +7,7 @@ If the host can set a process-local environment variable without printing it, se
 If not, open an interactive process with `--api-key-stdin`:
 
 ```bash
-python scripts/sufy_image2.py generate --api-key-stdin --prompt "..."
+python scripts/lts4ai_image.py generate --api-key-stdin --prompt "..."
 ```
 
 Then send the key as one stdin line through the Agent's process-input tool. The script reads the line without writing it to stdout.
@@ -31,7 +31,7 @@ Then send the key as one stdin line through the Agent's process-input tool. The 
 | 如何选择生图模型 | `guide` (offline; explain the returned catalog in Chinese) |
 | Check poster dimensions before paying | `canvas --width-cm W --height-cm H --quality 4K` (offline) |
 
-Default to `gpt-image-2.5`, the new direct model ID forwarded through the LTS4AI image channel's NextAICore adapter. Use `--model GPT-image-2` only when the user explicitly requests that compatibility alias, or the exact official Imagen model ID when the user selects one. Exact user selection takes precedence over recommendations. Authentication or availability failures do not permit automatic fallback.
+Default to `gpt-image-2.5`. Use `--model gpt-image-2.6` for 2.6, preserving the exact ID and Images API generation/edit endpoints. The offline `guide` lists the eight current models; `models` checks the user's current permissions. Old model IDs remain explicit compatibility inputs and are never silently rewritten. Exact user selection takes precedence over recommendations. Authentication or availability failures do not permit automatic fallback.
 
 Compose all image copy—titles, selling points, evidence labels, and scene text—directly as the Agent. Do not call DeepSeek or any other text/chat model for this work. Use only user-provided facts and explicitly permitted creative direction; do not invent certifications, parameters, specifications, or comparison claims.
 
@@ -45,7 +45,7 @@ The CLI prints JSON containing absolute paths, MIME types, byte sizes, model, an
 
 ## Errors
 
-- HTTP 401/403: ask the user to verify the LTS4AI key and model permission.
+- HTTP 401 or ordinary 403: ask the user to verify the LTS4AI key and model permission. A 403 with explicit token-quota exhaustion is a quota error, not an authentication failure.
 - HTTP 429: explain that rate limit or quota was reached; avoid immediate high-concurrency retry loops.
 - Image POST HTTP 408/409/5xx or a network interruption: outcome unknown; do not retry automatically. Check upstream results/billing, then obtain the user's direction for a new paid submission if needed. Read-only model-list GET can retry 5xx safely.
 - Missing image data: preserve the provider status and any existing output; reconcile the result before another paid request, and do not invent an image.

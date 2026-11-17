@@ -6,6 +6,7 @@ import http.client
 import json
 import os
 import struct
+import subprocess
 import sys
 import tempfile
 import threading
@@ -16,10 +17,10 @@ from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = ROOT / "scripts" / "sufy_image2.py"
-SPEC = importlib.util.spec_from_file_location("sufy_image2", SCRIPT)
+SCRIPT = ROOT / "scripts" / "lts4ai_image.py"
+SPEC = importlib.util.spec_from_file_location("lts4ai_image", SCRIPT)
 if SPEC is None or SPEC.loader is None:
-    raise RuntimeError("Unable to load sufy_image2 module")
+    raise RuntimeError("Unable to load lts4ai_image module")
 module = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = module
 SPEC.loader.exec_module(module)
@@ -127,12 +128,39 @@ class ResolutionAndValidationTests(unittest.TestCase):
                     module.resolve_size("1:1", "2K", explicit_resolution=resolution)
 
     def test_current_site_resolution_mapping(self):
-        self.assertEqual(module.resolve_size("1:1", "2K"), "1024x1024")
-        self.assertEqual(module.resolve_size("16:9", "2K"), "1536x1024")
-        self.assertEqual(module.resolve_size("2:3", "2K"), "1024x1536")
-        self.assertEqual(module.resolve_size("21:9", "2K"), "auto")
+        self.assertEqual(module.resolve_size("1:1", "2K"), "2048x2048")
+        self.assertEqual(module.resolve_size("16:9", "2K"), "2560x1440")
+        self.assertEqual(module.resolve_size("2:3", "2K"), "1536x2304")
+        self.assertEqual(module.resolve_size("21:9", "2K"), "2688x1152")
         self.assertEqual(module.resolve_size("2:3", "4K"), "2336x3504")
         self.assertEqual(module.resolve_size("Adaptive", "4K"), "3840x2160")
+
+    def test_2k_mapping_respects_model_endpoint_and_explicit_sizes(self):
+        for model in ["gpt-image-2.5", "gpt-image-2.6", "GPT-image-2",
+                      "gemini-3-pro-image-preview", "gemini-3.1-flash-image-preview"]:
+            with self.subTest(model=model):
+                self.assertEqual(module.resolve_size("1:1", "1K", model=model), "1024x1024")
+                self.assertEqual(module.resolve_size("1:1", "2K", model=model), "2048x2048")
+                self.assertEqual(module.resolve_size("1:1", "4K", model=model), "2880x2880")
+                self.assertEqual(module.resolve_size("3:4", "2K", model=model), "1536x2048")
+                self.assertEqual(module.resolve_size("1:1", "2K", model=model,
+                                                     explicit_resolution="1024x1024"), "1024x1024")
+        for model in ["gemini-pro-imagen-official", "gemini-flash-lite-imagen-official",
+                      "gemini-flash-imagen-official", "gemini-argon-imagen-official", "custom-model"]:
+            self.assertEqual(module.resolve_size("1:1", "2K", model=model), "1024x1024")
+        for base_url in ["http://api.lts4ai.com/v1", "https://api.lts4ai.com.evil.test/v1",
+                         "https://api.lts4ai.com:444/v1", "https://api.lts4ai.com/custom/v1",
+                         "https://other.test/v1", "https://api.lts4ai.com/v1?custom=1"]:
+            self.assertEqual(module.resolve_size("1:1", "2K", base_url=base_url), "1024x1024")
+        self.assertEqual(module.resolve_size("4:5", "2K", base_url="https://origin.lts4ai.com/image-sso/relay/v1"),
+                         "1536x1920")
+
+    def test_adaptive_2k_edit_uses_reference_ratio(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "portrait.png"
+            path.write_bytes(png_header(600, 800))
+            self.assertEqual(module.resolve_size("Adaptive", "2K", path, model="gpt-image-2.6"),
+                             "1536x2048")
 
     def test_explicit_resolution_override_is_preserved(self):
         self.assertEqual(
@@ -208,7 +236,7 @@ class ProviderContractTests(unittest.TestCase):
             "sleep": lambda _seconds: None,
         }
         options.update(overrides)
-        return module.SfImage2Client(**options)
+        return module.Lts4aiImageClient(**options)
 
     def test_text_to_image_uses_exact_sf_generation_contract(self):
         self.queue_json({"data": [{"b64_json": PNG_BASE64}]})
@@ -229,6 +257,26 @@ class ProviderContractTests(unittest.TestCase):
         self.assertNotIn("response_format", payload)
         self.assertEqual(result.path.read_bytes(), PNG_BYTES)
         self.assertEqual(result.mime_type, "image/png")
+
+    def test_current_models_and_legacy_alias_preserve_exact_images_api_contract(self):
+        reference = self.output_dir / "reference.png"
+        reference.write_bytes(PNG_BYTES)
+        references = module.validate_reference_images([reference])
+        models = [item["id"] for item in module.MODEL_GUIDE] + ["GPT-image-2"]
+        for model in models:
+            with self.subTest(model=model):
+                self.queue_json({"data": [{"b64_json": PNG_BASE64}]})
+                self.client(model=model).generate("preserve all text", "2048x2048", self.output_dir)
+                request = self.state.requests[-1]
+                self.assertEqual(request["path"], "/v1/images/generations")
+                self.assertEqual(json.loads(request["body"])["model"], model)
+                self.queue_json({"data": [{"b64_json": PNG_BASE64}]})
+                self.client(model=model).edit("preserve all text", references, "1536x2048", self.output_dir)
+                request = self.state.requests[-1]
+                self.assertEqual(request["path"], "/v1/images/edits")
+                self.assertIn(f'name="model"\r\n\r\n{model}\r\n'.encode(), request["body"])
+                self.assertIn(PNG_BYTES, request["body"])
+        self.assertEqual(len(self.state.requests), len(models) * 2)
 
     def test_multi_reference_edit_uses_ordered_multipart_contract(self):
         self.queue_json({"data": [{"b64_json": PNG_BASE64}]})
@@ -348,6 +396,36 @@ class ProviderContractTests(unittest.TestCase):
 
 
 class CliTests(unittest.TestCase):
+    def test_renamed_and_legacy_entry_points_work_from_another_directory_offline(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for script in ["lts4ai_image.py", "sufy_image2.py"]:
+                completed = subprocess.run([sys.executable, str(ROOT / "scripts" / script), "guide"],
+                                           cwd=directory, capture_output=True, text=True, encoding="utf-8")
+                self.assertEqual(completed.returncode, 0, completed.stderr)
+                guide = json.loads(completed.stdout)
+                self.assertEqual(guide["defaultModel"], "gpt-image-2.5")
+                self.assertEqual(len(guide["models"]), 8)
+                self.assertIn("gpt-image-2.6", [item["id"] for item in guide["models"]])
+
+    def test_default_endpoint_2_6_cli_sends_2k_on_images_api_only(self):
+        response = mock.MagicMock()
+        response.__enter__.return_value.read.return_value = json.dumps({"data": [{"b64_json": PNG_BASE64}]}).encode()
+        response.__enter__.return_value.headers = {"Content-Type": "application/json"}
+        with mock.patch.object(module.urllib.request, "urlopen", return_value=response) as request:
+            status, stdout, stderr = self.invoke(["generate", "--prompt", "keep all text", "--model", "gpt-image-2.6",
+                                                  "--output-dir", str(self.directory / "mock-output")])
+        self.assertEqual((status, stderr), (0, ""))
+        self.assertEqual(request.call_count, 1)
+        sent = request.call_args.args[0]
+        self.assertEqual(sent.full_url, "https://api.lts4ai.com/v1/images/generations")
+        self.assertEqual(json.loads(sent.data), {"model": "gpt-image-2.6", "prompt": "keep all text",
+                                                "size": "2048x2048", "output_format": "png"})
+        self.assertEqual(json.loads(stdout)["size"], "2048x2048")
+
+    def test_legacy_client_import_and_credential_filename_are_preserved(self):
+        self.assertIs(module.SfImage2Client, module.Lts4aiImageClient)
+        self.assertEqual(module.SAVED_CREDENTIAL_RELATIVE_PATH.name, "sufy-image2.dpapi")
+
     def test_default_is_gpt_image_2_5_for_all_image_commands(self):
         for command in ["generate", "edit", "batch"]:
             arguments = [command, "--prompt", "keep title"]
@@ -367,14 +445,14 @@ class CliTests(unittest.TestCase):
                 self.assertEqual(summary["canvas"]["ratio"], "3:1")
             else:
                 self.assertEqual(summary["defaultModel"], "gpt-image-2.5")
-                self.assertEqual(len(summary["models"]), 5)
+                self.assertEqual(len(summary["models"]), 8)
         self.assertEqual(self.state.requests, [])
 
     def test_custom_canvas_reaches_all_commands_and_models(self):
         image_path = self.directory / "reference.png"
         image_path.write_bytes(PNG_BYTES)
         prompt = "保留全部标题与卖点，不改变背景。"
-        for model in ["GPT-image-2", "gpt-image-2.5", "gemini-3.6-flash-imagen-official"]:
+        for model in ["GPT-image-2", "gpt-image-2.5", "gemini-flash-imagen-official"]:
             for command in ["generate", "edit", "batch"]:
                 with self.subTest(model=model, command=command):
                     self.queue_image()
@@ -579,7 +657,7 @@ class CliTests(unittest.TestCase):
 class DocumentationTests(unittest.TestCase):
     def test_skill_metadata_and_workflow_are_complete(self):
         skill_text = (ROOT / "SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("name: sufy-image2", skill_text)
+        self.assertIn("name: lts4ai-image", skill_text)
         self.assertIn("description: Use when", skill_text)
         self.assertIn("gpt-image-2.5", skill_text)
         self.assertIn("do not call a separate text/chat model", skill_text)
